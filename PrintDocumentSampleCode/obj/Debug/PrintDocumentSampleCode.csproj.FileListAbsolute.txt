@@ -1,0 +1,12 @@
+C:\Users\alexa\source\repos\PrintDocumentSampleCode\PrintDocumentSampleCode\bin\Debug\PrintDocumentSampleCode.exe.config
+C:\Users\alexa\source\repos\PrintDocumentSampleCode\PrintDocumentSampleCode\bin\Debug\PrintDocumentSampleCode.exe
+C:\Users\alexa\source\repos\PrintDocumentSampleCode\PrintDocumentSampleCode\bin\Debug\PrintDocumentSampleCode.pdb
+C:\Users\alexa\source\repos\PrintDocumentSampleCode\PrintDocumentSampleCode\bin\Debug\zxing.dll
+C:\Users\alexa\source\repos\PrintDocumentSampleCode\PrintDocumentSampleCode\bin\Debug\zxing.presentation.dll
+C:\Users\alexa\source\repos\PrintDocumentSampleCode\PrintDocumentSampleCode\bin\Debug\zxing.xml
+C:\Users\alexa\source\repos\PrintDocumentSampleCode\PrintDocumentSampleCode\bin\Debug\zxing.presentation.xml
+C:\Users\alexa\source\repos\PrintDocumentSampleCode\PrintDocumentSampleCode\obj\Debug\PrintDocumentSampleCode.csproj.AssemblyReference.cache
+C:\Users\alexa\source\repos\PrintDocumentSampleCode\PrintDocumentSampleCode\obj\Debug\PrintDocumentSampleCode.csproj.CoreCompileInputs.cache
+C:\Users\alexa\source\repos\PrintDocumentSampleCode\PrintDocumentSampleCode\obj\Debug\PrintDoc.9BFB9326.Up2Date
+C:\Users\alexa\source\repos\PrintDocumentSampleCode\PrintDocumentSampleCode\obj\Debug\PrintDocumentSampleCode.exe
+C:\Users\alexa\source\repos\PrintDocumentSampleCode\PrintDocumentSampleCode\obj\Debug\PrintDocumentSampleCode.pdb
