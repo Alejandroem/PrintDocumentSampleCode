@@ -1,151 +1,148 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Printing;
 using System.Linq;
-using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
-using ZXing;
 
 namespace PrintDocumentSampleCode
 {
     class Program
     {
-        String productName = "";
-        String productPrice = "";
-        String productBarcode = "";
         static void Main(string[] args)
         {
-            Program p = new Program();
-            p.PrintLabelOnLabelPrinter("TSC DA210", "Product Name", "£0.35", "05054073035600");
-        }
+            string printerName = "TSC DA210";  // Replace with your actual printer name
 
-        public enum HardwareResultCode
-        {
-            Printed,
-            PrinterNotFound,
-            PrinterError
-        }
+            // Define label dimensions (mm)
+            double paperWidthMm = 80;
+            double paperHeightMm = 38;
 
-        public HardwareResultCode PrintLabelOnLabelPrinter(string printerName, string productName, string price, string barcode)
-        {
-            this.productName = productName;
-            this.productPrice = price;
-            this.productBarcode = barcode;
-            try
+            // Variables
+            string price = "2.99";
+            string barcode = "012345678905";  // UPC-A barcode (must be 12 digits)
+            string productName = "SAMPLE PRODUCT NAME MIGHT BE LONG";
+
+            // Split product name into two lines without breaking words
+            string[] words = productName.Split(' ');
+            StringBuilder firstLineBuilder = new StringBuilder();
+            StringBuilder secondLineBuilder = new StringBuilder();
+
+            foreach (var word in words)
             {
-                using (PrintDocument printDocument = new PrintDocument())
+                if ((firstLineBuilder.Length + word.Length + 1) <= 17 || firstLineBuilder.Length == 0)
                 {
-                    printDocument.PrinterSettings.PrinterName = printerName;
-
-                    if (!printDocument.PrinterSettings.IsValid)
-                    {
-                        Console.WriteLine("The specified printer is not valid.");
-                        return HardwareResultCode.PrinterNotFound;
-                    }
-
-                    PaperSize paperSize = new PaperSize("Custom", 318, 140);
-                    printDocument.DefaultPageSettings.PaperSize = paperSize;
-
-                    printDocument.PrintPage += new PrintPageEventHandler(PrintLabelUsingWindowsDriver);
-
-                    printDocument.Print();
+                    if (firstLineBuilder.Length > 0) firstLineBuilder.Append(" ");
+                    firstLineBuilder.Append(word);
                 }
+                else if ((secondLineBuilder.Length + word.Length + 1) <= 17 || secondLineBuilder.Length == 0)
+                {
+                    if (secondLineBuilder.Length > 0) secondLineBuilder.Append(" ");
+                    secondLineBuilder.Append(word);
+                }
+            }
 
-                return HardwareResultCode.Printed;
-            }
-            catch (Exception ex)
+            string firstLine = firstLineBuilder.ToString();
+            string secondLine = secondLineBuilder.ToString();
+
+            // Positions (TSPL2 unit: 1 mm ≈ 8 dots)
+            int pricePosX = 32;
+            int pricePosY = 32;
+
+            int barcodePosX = 380;
+            int barcodePosY = 44;
+
+            // Text positions
+            int firstLinePosX = 54;
+            int firstLinePosY = 180;
+            int secondLinePosX = firstLinePosX;
+            int secondLinePosY = firstLinePosY + 54; // Approximate vertical spacing between lines
+
+            string tsplCommand = $"SIZE {paperWidthMm} mm,{paperHeightMm} mm\n" +
+                                 "CODEPAGE 1252\n" +
+                                 "BLINE 0.3 mm,0 mm\n" +
+                                 "DIRECTION 1\n" +
+                                 "CLS\n" +
+                                 $"TEXT {pricePosX},{pricePosY},\"4\",0,2,2,0,\"£{price}\"\n" +
+                                 $"BARCODE {barcodePosX},{barcodePosY},\"UPCA\",60,1,0,2,2,\"{barcode}\"\n" +
+                                 $"TEXT {firstLinePosX},{firstLinePosY},\"3\",0,2,2,0,\"{firstLine}\"\n";
+
+            if (!string.IsNullOrEmpty(secondLine))
             {
-                Console.WriteLine($"An error occurred while printing: {ex.Message}");
-                return HardwareResultCode.PrinterError;
+                tsplCommand += $"TEXT {secondLinePosX},{secondLinePosY},\"3\",0,2,2,0,\"{secondLine}\"\n";
             }
+
+            tsplCommand += "PRINT 1\n";
+
+            bool success = RawPrinterHelper.SendStringToPrinter(printerName, tsplCommand);
+
+            Console.WriteLine(success ? "Label printed successfully!" : "Label failed to print!");
+            Console.ReadLine();
+        }
+    }
+
+    public class RawPrinterHelper
+    {
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        public class DOCINFO
+        {
+            [MarshalAs(UnmanagedType.LPWStr)] public string pDocName;
+            [MarshalAs(UnmanagedType.LPWStr)] public string pOutputFile;
+            [MarshalAs(UnmanagedType.LPWStr)] public string pDataType;
         }
 
-        private void PrintLabelUsingWindowsDriver(object sender, PrintPageEventArgs ev)
+        [DllImport("winspool.Drv", EntryPoint = "OpenPrinterW", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern bool OpenPrinter(string src, out IntPtr hPrinter, IntPtr pd);
+
+        [DllImport("winspool.Drv", EntryPoint = "ClosePrinter", SetLastError = true)]
+        public static extern bool ClosePrinter(IntPtr hPrinter);
+
+        [DllImport("winspool.Drv", EntryPoint = "StartDocPrinterW", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern bool StartDocPrinter(IntPtr hPrinter, int Level, [In, MarshalAs(UnmanagedType.LPStruct)] DOCINFO pDocInfo);
+
+        [DllImport("winspool.Drv", EntryPoint = "EndDocPrinter", SetLastError = true)]
+        public static extern bool EndDocPrinter(IntPtr hPrinter);
+
+        [DllImport("winspool.Drv", EntryPoint = "StartPagePrinter", SetLastError = true)]
+        public static extern bool StartPagePrinter(IntPtr hPrinter);
+
+        [DllImport("winspool.Drv", EntryPoint = "EndPagePrinter", SetLastError = true)]
+        public static extern bool EndPagePrinter(IntPtr hPrinter);
+
+        [DllImport("winspool.Drv", EntryPoint = "WritePrinter", SetLastError = true)]
+        public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, int dwCount, out int dwWritten);
+
+        public static bool SendStringToPrinter(string printerName, string data)
         {
-            try
-            {
-                float leftMargin = 15;
-                float topMargin = 15;
-                float pageWidth = 318;
-                float pageHeight = 150;
-                SolidBrush drawBrush = new SolidBrush(Color.Gold);
-                Pen blackPen = new Pen(Color.Black);
-
-                // Define fonts
-                using (Font priceFont = new Font("Arial", 28, FontStyle.Bold))
-                using (Font barcodeFont = new Font("Arial", 8, FontStyle.Regular))
-                using (Font productNameFont = new Font("Arial", 18, FontStyle.Bold))
-                {
-                    // Calculate sizes and positions
-                    float firstRowHeight = pageHeight / 3;
-                    float secondRowHeight = pageHeight / 3;
-                    float columnWidth = pageWidth / 2;
-
-                    // Draw price in the first column of the first row
-                    RectangleF priceRect = new RectangleF(leftMargin, topMargin, pageWidth, 40);
-
-                    StringFormat drawFormat = new StringFormat();
-                    drawFormat.Alignment = StringAlignment.Near;
-                    ev.Graphics.DrawString(this.productPrice, priceFont, drawBrush, priceRect, drawFormat);
-
-                    // Generate barcode image
-                    using (Bitmap barcodeImage = GenerateBarcode(this.productBarcode))
-                    {
-                        // Draw barcode image in the second column of the first row
-                        RectangleF barcodeRect = new RectangleF(leftMargin + 130, topMargin + 10, 150, 40);
-                        ev.Graphics.DrawImage(barcodeImage, barcodeRect);
-                    }
-
-                    string firstLine = this.productName;
-                    string secondLine = string.Empty;
-
-                    if (firstLine.Length > 20)
-                    {
-                        int splitIndex = firstLine.LastIndexOf(' ', 20);
-                        if (splitIndex == -1) splitIndex = 20; // Split at 20 if no space found
-                        firstLine = firstLine.Substring(0, splitIndex);
-                        secondLine = firstLine.Substring(splitIndex).Trim();
-
-                        if (secondLine.Length > 17)
-                        {
-                            secondLine = secondLine.Substring(0, 17) + "...";
-                        }
-                    }
-
-                    // Draw product name
-                    RectangleF productNameRect1 = new RectangleF(leftMargin, topMargin + firstRowHeight, pageWidth - 50, secondRowHeight);
-                    ev.Graphics.DrawString(firstLine, productNameFont, Brushes.Black, productNameRect1, new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center });
-
-                    if (!string.IsNullOrEmpty(secondLine))
-                    {
-                        RectangleF productNameRect2 = new RectangleF(leftMargin, topMargin + firstRowHeight + 25, pageWidth - 50, secondRowHeight);
-                        ev.Graphics.DrawString(secondLine, productNameFont, Brushes.Black, productNameRect2, new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center });
-                    }
-                }
-
-                ev.HasMorePages = false;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"An error occurred during drawing: {ex.Message}");
-            }
+            IntPtr pBytes;
+            int dwCount = Encoding.UTF8.GetByteCount(data);
+            pBytes = Marshal.StringToCoTaskMemAnsi(data);
+            bool success = SendBytesToPrinter(printerName, pBytes, dwCount);
+            Marshal.FreeCoTaskMem(pBytes);
+            return success;
         }
 
-        private Bitmap GenerateBarcode(string text)
+        private static bool SendBytesToPrinter(string szPrinterName, IntPtr pBytes, int dwCount)
         {
-            var barcodeWriter = new BarcodeWriter
+            IntPtr hPrinter;
+            DOCINFO di = new DOCINFO { pDocName = "C# TSPL2 Label", pDataType = "RAW" };
+            bool bSuccess = false;
+
+            if (OpenPrinter(szPrinterName, out hPrinter, IntPtr.Zero))
             {
-                Format = BarcodeFormat.CODE_128,
-                Options = new ZXing.Common.EncodingOptions
+                if (StartDocPrinter(hPrinter, 1, di))
                 {
-                    Width = 150,
-                    Height = 40
+                    if (StartPagePrinter(hPrinter))
+                    {
+                        bSuccess = WritePrinter(hPrinter, pBytes, dwCount, out _);
+                        EndPagePrinter(hPrinter);
+                    }
+                    EndDocPrinter(hPrinter);
                 }
-            };
-            return barcodeWriter.Write(text);
+                ClosePrinter(hPrinter);
+            }
+
+            if (!bSuccess)
+                Console.WriteLine($"Printing error: {Marshal.GetLastWin32Error()}");
+
+            return bSuccess;
         }
     }
 }
